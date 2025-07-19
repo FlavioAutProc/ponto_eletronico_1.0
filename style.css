@@ -966,3 +966,150 @@ footer::before {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--primary-dark);
 }
+
+
+/* Adicione isso ao seu style.css */
+
+/* Estilos para PDF - Melhorados */
+.pdf-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.pdf-header h1 {
+    color: #2c3e50;
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.pdf-header h2 {
+    color: #7f8c8d;
+    font-size: 1.3rem;
+    font-weight: 400;
+}
+
+.pdf-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.pdf-table th {
+    background-color: #3498db;
+    color: white;
+    padding: 0.75rem;
+    text-align: center;
+    font-weight: 500;
+    border: 1px solid #2980b9;
+}
+
+.pdf-table td {
+    padding: 0.6rem;
+    border: 1px solid #e0e0e0;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.pdf-table tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+.pdf-table tr:hover {
+    background-color: #e8f4fc;
+}
+
+.pdf-feriado {
+    background-color: #fff8e1 !important;
+    color: #5d4037;
+}
+
+.pdf-footer {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 2px solid #e0e0e0;
+    font-size: 0.85rem;
+    color: #7f8c8d;
+}
+
+.pdf-summary {
+    background-color: #f5f5f5;
+    border-radius: 6px;
+    padding: 1rem;
+    margin: 1.5rem 0;
+}
+
+.pdf-summary h3 {
+    color: #2c3e50;
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 0.5rem;
+}
+
+.pdf-notes {
+    font-size: 0.8rem;
+    color: #7f8c8d;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px dashed #e0e0e0;
+}
+
+.pdf-signature {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e0e0e0;
+    text-align: right;
+}
+
+.pdf-logo {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.pdf-logo-text {
+    display: inline-block;
+    background-color: #3498db;
+    color: white;
+    padding: 0.5rem 1.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+}
+
+/* Adicione isso na seção de estilos */
+.config-form {
+    background-color: var(--white);
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    margin-top: 1.5rem;
+}
+
+.config-form .form-group {
+    margin-bottom: 1.25rem;
+}
+
+.time-inputs {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.time-inputs input {
+    flex: 1;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.time-inputs span {
+    color: var(--gray-color);
+    font-size: 0.9rem;
+}

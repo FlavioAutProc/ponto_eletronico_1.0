@@ -17,6 +17,7 @@
 
     <div class="container">
         <div class="ponto-container">
+            
             <div class="card">
                 <h2 class="card-title"><i class="fas fa-clock"></i> Registrar Ponto</h2>
                 <div class="btn-group">
@@ -79,6 +80,7 @@
                     <div class="tab" data-tab="relatorios"><i class="fas fa-file-alt"></i> Relatórios</div>
                     <div class="tab" data-tab="feriados"><i class="fas fa-calendar-day"></i> Feriados</div>
                     <div class="tab" data-tab="backup"><i class="fas fa-database"></i> Backup</div>
+                    <div class="tab" data-tab="configuracoes"><i class="fas fa-cog"></i> Configurações</div>
                 </div>
 
                 <div class="tab-content active" id="historico">
@@ -177,6 +179,43 @@
                             <strong id="recordsPeriod">N/A</strong>
                         </div>
                     </div>
+                </div>
+
+                <div class="tab-content" id="configuracoes">
+                <h3><i class="fas fa-user-cog"></i> Configurações do Usuário</h3>
+        <div class="config-form">
+            <div class="form-group">
+                <label for="userName">Nome Completo:</label>
+                <input type="text" id="userName" placeholder="Digite seu nome completo">
+            </div>
+            <div class="form-group">
+                <label for="userSetor">Setor:</label>
+                <input type="text" id="userSetor" placeholder="Digite seu setor">
+            </div>
+            <div class="form-group">
+                <label for="userFuncao">Função:</label>
+                <input type="text" id="userFuncao" placeholder="Digite sua função">
+            </div>
+            <div class="form-group">
+                <label for="userEmpresa">Empresa:</label>
+                <input type="text" id="userEmpresa" placeholder="Digite o nome da empresa">
+            </div>
+            <div class="form-group">
+                <label for="userAdmissao">Data de Admissão:</label>
+                <input type="date" id="userAdmissao">
+            </div>
+            <div class="form-group">
+                <label>Jornada de Trabalho:</label>
+                <div class="time-inputs">
+                    <input type="time" id="jornadaInicio" placeholder="Início">
+                    <span>às</span>
+                    <input type="time" id="jornadaFim" placeholder="Fim">
+                </div>
+            </div>
+            <button id="saveConfigBtn" class="btn btn-primary">
+                <i class="fas fa-save"></i> Salvar Configurações
+            </button>
+        </div>
                 </div>
             </div>
         </div>

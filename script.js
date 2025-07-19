@@ -55,7 +55,16 @@ function isFeriado(date) {
     const dateStr = date.toISOString().split('T')[0];
     return feriados.some(f => f.date === dateStr);
 }
-
+// Adicione no início do arquivo, após as constantes de feriados
+const defaultConfig = {
+    nome: '',
+    setor: '',
+    funcao: '',
+    empresa: '',
+    admissao: '',
+    jornadaInicio: '08:00',
+    jornadaFim: '17:00'
+};
 // Função para obter informações do feriado
 function getFeriadoInfo(date) {
     const dateStr = date.toISOString().split('T')[0];
@@ -69,10 +78,14 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(updateCurrentTime, 1000);
 
     // Carregar registros do localStorage
+    loadUserConfig();
     loadRegistros();
     updateBackupStats();
 
     // Configurar listeners dos botões
+    // Configurar botão de salvar
+    document.getElementById('saveConfigBtn').addEventListener('click', saveUserConfig);
+
     document.getElementById('entradaBtn').addEventListener('click', () => registrarPonto('Entrada'));
     document.getElementById('intervaloBtn').addEventListener('click', () => registrarPonto('Intervalo'));
     document.getElementById('retornoBtn').addEventListener('click', () => registrarPonto('Retorno'));
@@ -95,6 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById(tabId).classList.add('active');
             
             // Carregar conteúdo específico da tab
+            if (tabId === 'configuracoes') loadUserConfig();
             if (tabId === 'historico') loadHistorico();
             if (tabId === 'relatorios') loadRelatorios();
             if (tabId === 'feriados') loadFeriados();
@@ -762,9 +776,11 @@ function populateYearDropdown() {
 }
 
 // Exportar relatório mensal em PDF
+
 function exportMonthPDF() {
     const registros = JSON.parse(localStorage.getItem('registrosPontos') || '[]');
     const monthInput = document.getElementById('reportMonth').value;
+    const userConfig = JSON.parse(localStorage.getItem('userConfig')) || defaultConfig;
     
     if (!monthInput) {
         alert('Por favor, selecione um mês e ano.');
@@ -798,26 +814,191 @@ function exportMonthPDF() {
     const monthName = new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
     
     let pdfContent = `
-        <h1 style="text-align: center;">Relatório Mensal de Ponto</h1>
-        <h2 style="text-align: center;">${monthName}</h2>
-        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-            <thead>
-                <tr>
-                    <th style="border: 1px solid #000; padding: 8px;">Data</th>
-                    <th style="border: 1px solid #000; padding: 8px;">Dia</th>
-                    <th style="border: 1px solid #000; padding: 8px;">Entrada</th>
-                    <th style="border: 1px solid #000; padding: 8px;">Intervalo</th>
-                    <th style="border: 1px solid #000; padding: 8px;">Retorno</th>
-                    <th style="border: 1px solid #000; padding: 8px;">Saída</th>
-                    <th style="border: 1px solid #000; padding: 8px;">Total</th>
-                </tr>
-            </thead>
-            <tbody>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Relatório Mensal de Ponto - ${monthName}</title>
+            <style>
+                body { 
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    margin: 1.5cm;
+                    color: #333;
+                    line-height: 1.5;
+                }
+                .pdf-header {
+                    text-align: center;
+                    margin-bottom: 1.5rem;
+                    padding-bottom: 1rem;
+                    border-bottom: 2px solid #e0e0e0;
+                }
+                .pdf-header h1 {
+                    color: #2c3e50;
+                    font-size: 1.8rem;
+                    margin-bottom: 0.5rem;
+                    font-weight: 600;
+                }
+                .pdf-header h2 {
+                    color: #7f8c8d;
+                    font-size: 1.3rem;
+                    font-weight: 400;
+                }
+                .user-info {
+                    margin-bottom: 1.5rem;
+                    padding: 1rem;
+                    background-color: #f5f5f5;
+                    border-radius: 6px;
+                    font-size: 0.9rem;
+                }
+                .user-info-row {
+                    display: flex;
+                    margin-bottom: 0.5rem;
+                }
+                .user-info-label {
+                    font-weight: 600;
+                    min-width: 150px;
+                    color: #7f8c8d;
+                }
+                .pdf-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 1.5rem 0;
+                    font-size: 0.9rem;
+                }
+                .pdf-table th {
+                    background-color: #3498db;
+                    color: white;
+                    padding: 0.75rem;
+                    text-align: center;
+                    font-weight: 500;
+                    border: 1px solid #2980b9;
+                }
+                .pdf-table td {
+                    padding: 0.6rem;
+                    border: 1px solid #e0e0e0;
+                    text-align: center;
+                }
+                .pdf-table tr:nth-child(even) {
+                    background-color: #f8f9fa;
+                }
+                .pdf-feriado {
+                    background-color: #fff8e1 !important;
+                    color: #5d4037;
+                }
+                .pdf-summary {
+                    background-color: #f5f5f5;
+                    border-radius: 6px;
+                    padding: 1rem;
+                    margin: 1.5rem 0;
+                }
+                .pdf-summary h3 {
+                    color: #2c3e50;
+                    font-size: 1.2rem;
+                    margin-bottom: 1rem;
+                    border-bottom: 1px solid #e0e0e0;
+                    padding-bottom: 0.5rem;
+                }
+                .pdf-notes {
+                    font-size: 0.8rem;
+                    color: #7f8c8d;
+                    margin-top: 1.5rem;
+                    padding-top: 1rem;
+                    border-top: 1px dashed #e0e0e0;
+                }
+                .pdf-footer {
+                    margin-top: 2rem;
+                    padding-top: 1rem;
+                    border-top: 2px solid #e0e0e0;
+                    font-size: 0.85rem;
+                    color: #7f8c8d;
+                }
+                .pdf-signature {
+                    margin-top: 3rem;
+                    padding-top: 1rem;
+                    border-top: 1px solid #e0e0e0;
+                    text-align: right;
+                }
+                .pdf-logo {
+                    text-align: center;
+                    margin-bottom: 1rem;
+                }
+                .pdf-logo-text {
+                    display: inline-block;
+                    background-color: #3498db;
+                    color: white;
+                    padding: 0.5rem 1.5rem;
+                    border-radius: 4px;
+                    font-weight: 600;
+                    font-size: 1.2rem;
+                    margin-bottom: 1rem;
+                }
+                @page {
+                    size: A4;
+                    margin: 1.5cm;
+                    @bottom-right {
+                        content: "Página " counter(page) " de " counter(pages);
+                        font-size: 0.8rem;
+                        color: #7f8c8d;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="pdf-logo">
+                <div class="pdf-logo-text">PONTO ELETRÔNICO</div>
+            </div>
+            <div class="pdf-header">
+                <h1>Relatório Mensal de Ponto</h1>
+                <h2>${monthName}</h2>
+            </div>
+            
+            <div class="user-info">
+                <div class="user-info-row">
+                    <span class="user-info-label">Nome:</span>
+                    <span>${userConfig.nome || 'Não informado'}</span>
+                </div>
+                <div class="user-info-row">
+                    <span class="user-info-label">Setor:</span>
+                    <span>${userConfig.setor || 'Não informado'}</span>
+                </div>
+                <div class="user-info-row">
+                    <span class="user-info-label">Função:</span>
+                    <span>${userConfig.funcao || 'Não informado'}</span>
+                </div>
+                <div class="user-info-row">
+                    <span class="user-info-label">Empresa:</span>
+                    <span>${userConfig.empresa || 'Não informado'}</span>
+                </div>
+                <div class="user-info-row">
+                    <span class="user-info-label">Data de Admissão:</span>
+                    <span>${userConfig.admissao ? new Date(userConfig.admissao).toLocaleDateString('pt-BR') : 'Não informada'}</span>
+                </div>
+                <div class="user-info-row">
+                    <span class="user-info-label">Jornada Padrão:</span>
+                    <span>${userConfig.jornadaInicio || '08:00'} às ${userConfig.jornadaFim || '17:00'}</span>
+                </div>
+            </div>
+            
+            <table class="pdf-table">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Dia</th>
+                        <th>Entrada</th>
+                        <th>Intervalo</th>
+                        <th>Retorno</th>
+                        <th>Saída</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
     `;
     
     let totalHorasMes = 0;
     let diasUteis = 0;
     let diasTrabalhados = 0;
+    let diasFeriados = 0;
+    let horasExtras = 0;
+    let horasDevidas = 0;
     
     // Obter todos os dias do mês
     const daysInMonth = new Date(year, month, 0).getDate();
@@ -836,6 +1017,7 @@ function exportMonthPDF() {
         // Verificar se é feriado
         const isFeriado = feriados.some(f => f.date === dateKey);
         const feriadoInfo = isFeriado ? feriados.find(f => f.date === dateKey) : null;
+        if (isFeriado) diasFeriados++;
         
         // Obter registros do dia
         const dayRegistros = groupedByDay[dateKey] || [];
@@ -849,6 +1031,8 @@ function exportMonthPDF() {
         // Calcular horas trabalhadas
         let horasTrabalhadas = 0;
         let horasStr = 'N/A';
+        let horasExtrasDia = 0;
+        let horasDevidasDia = 0;
         
         if (entrada && saida) {
             diasTrabalhados++;
@@ -871,23 +1055,37 @@ function exportMonthPDF() {
             
             horasTrabalhadas = diffHours;
             
+            // Calcular horas extras/devidas (considerando jornada padrão 8h)
+            const jornadaPadrao = 8;
+            if (horasTrabalhadas > jornadaPadrao) {
+                horasExtrasDia = horasTrabalhadas - jornadaPadrao;
+                horasExtras += horasExtrasDia;
+            } else if (horasTrabalhadas > 0) {
+                horasDevidasDia = jornadaPadrao - horasTrabalhadas;
+                horasDevidas += horasDevidasDia;
+            }
+            
             // Formatar horas
             const hours = Math.floor(diffHours);
             const minutes = Math.floor((diffHours - hours) * 60);
             horasStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            
+            if (horasExtrasDia > 0 || horasDevidasDia > 0) {
+                horasStr += ` (${horasExtrasDia > 0 ? '+' : ''}${horasExtrasDia.toFixed(2)}h / ${horasDevidasDia > 0 ? '-' : ''}${horasDevidasDia.toFixed(2)}h)`;
+            }
         }
         
         totalHorasMes += horasTrabalhadas;
         
         pdfContent += `
-            <tr ${isFeriado ? 'style="background-color: #fff3cd;"' : ''}>
-                <td style="border: 1px solid #000; padding: 8px;">${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}</td>
-                <td style="border: 1px solid #000; padding: 8px;">${dayName}${isFeriado ? ' (Feriado)' : ''}</td>
-                <td style="border: 1px solid #000; padding: 8px;">${entrada ? new Date(entrada.data).toLocaleTimeString('pt-BR') : 'N/A'}</td>
-                <td style="border: 1px solid #000; padding: 8px;">${intervalo ? new Date(intervalo.data).toLocaleTimeString('pt-BR') : 'N/A'}</td>
-                <td style="border: 1px solid #000; padding: 8px;">${retorno ? new Date(retorno.data).toLocaleTimeString('pt-BR') : 'N/A'}</td>
-                <td style="border: 1px solid #000; padding: 8px;">${saida ? new Date(saida.data).toLocaleTimeString('pt-BR') : 'N/A'}</td>
-                <td style="border: 1px solid #000; padding: 8px;">${horasStr}</td>
+            <tr ${isFeriado ? 'class="pdf-feriado"' : ''}>
+                <td>${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}</td>
+                <td>${dayName}${isFeriado ? ' (Feriado)' : ''}</td>
+                <td>${entrada ? new Date(entrada.data).toLocaleTimeString('pt-BR') : 'N/A'}</td>
+                <td>${intervalo ? new Date(intervalo.data).toLocaleTimeString('pt-BR') : 'N/A'}</td>
+                <td>${retorno ? new Date(retorno.data).toLocaleTimeString('pt-BR') : 'N/A'}</td>
+                <td>${saida ? new Date(saida.data).toLocaleTimeString('pt-BR') : 'N/A'}</td>
+                <td>${horasStr}</td>
             </tr>
         `;
     }
@@ -903,74 +1101,91 @@ function exportMonthPDF() {
     const mediaMinutes = Math.floor((mediaDiaria - mediaHours) * 60);
     const mediaStr = `${mediaHours.toString().padStart(2, '0')}:${mediaMinutes.toString().padStart(2, '0')}`;
     
-    pdfContent += `
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="6" style="border: 1px solid #000; padding: 8px; text-align: right;"><strong>Total do Mês:</strong></td>
-                    <td style="border: 1px solid #000; padding: 8px;"><strong>${totalStr}</strong></td>
-                </tr>
-                <tr>
-                    <td colspan="6" style="border: 1px solid #000; padding: 8px; text-align: right;"><strong>Média Diária:</strong></td>
-                    <td style="border: 1px solid #000; padding: 8px;"><strong>${mediaStr}</strong></td>
-                </tr>
-                <tr>
-                    <td colspan="6" style="border: 1px solid #000; padding: 8px; text-align: right;"><strong>Dias Úteis:</strong></td>
-                    <td style="border: 1px solid #000; padding: 8px;"><strong>${diasUteis}</strong></td>
-                </tr>
-                <tr>
-                    <td colspan="6" style="border: 1px solid #000; padding: 8px; text-align: right;"><strong>Dias Trabalhados:</strong></td>
-                    <td style="border: 1px solid #000; padding: 8px;"><strong>${diasTrabalhados}</strong></td>
-                </tr>
-            </tfoot>
-        </table>
-        <div style="margin-top: 30px; font-size: 0.9rem;">
-            <p><strong>Observações:</strong></p>
-            <ul>
-                <li>Horas calculadas considerando 1 hora de intervalo para jornadas acima de 6 horas</li>
-                <li>Feriados destacados em amarelo</li>
-                <li>Relatório gerado automaticamente pelo sistema de ponto eletrônico</li>
-            </ul>
-        </div>
-        <p style="margin-top: 20px; text-align: right; font-size: 0.9rem;">Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
-    `;
+    // Formatar horas extras e devidas
+    const horasExtrasFormat = horasExtras > 0 ? `+${horasExtras.toFixed(2)}h` : '0h';
+    const horasDevidasFormat = horasDevidas > 0 ? `-${horasDevidas.toFixed(2)}h` : '0h';
     
-    // Gerar PDF (simulação - em produção usar biblioteca como jsPDF)
-    const win = window.open('', '_blank');
-    win.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Relatório Mensal de Ponto - ${monthName}</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 20px; }
-                table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                th, td { border: 1px solid #000; padding: 8px; text-align: center; }
-                .feriado { background-color: #fff3cd; }
-                tfoot tr { font-weight: bold; background-color: #f2f2f2; }
-                h1, h2 { color: #2c3e50; }
-                ul { padding-left: 20px; }
-            </style>
-        </head>
-        <body>
-            ${pdfContent}
-            <script>
-                window.onload = function() {
-                    setTimeout(function() {
-                        window.print();
-                    }, 500);
-                };
-            </script>
+    pdfContent += `
+                </tbody>
+            </table>
+            
+            <div class="pdf-summary">
+                <h3>Resumo Mensal</h3>
+                <table class="pdf-table" style="width: 100%;">
+                    <tr>
+                        <td style="text-align: right; width: 70%;"><strong>Total do Mês:</strong></td>
+                        <td style="font-weight: bold;">${totalStr}</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: right;"><strong>Média Diária:</strong></td>
+                        <td style="font-weight: bold;">${mediaStr}</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: right;"><strong>Dias Úteis:</strong></td>
+                        <td style="font-weight: bold;">${diasUteis}</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: right;"><strong>Dias Trabalhados:</strong></td>
+                        <td style="font-weight: bold;">${diasTrabalhados}</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: right;"><strong>Dias Feriados:</strong></td>
+                        <td style="font-weight: bold;">${diasFeriados}</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: right;"><strong>Horas Extras:</strong></td>
+                        <td style="font-weight: bold; color: ${horasExtras > 0 ? '#27ae60' : '#7f8c8d'};">${horasExtrasFormat}</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: right;"><strong>Horas Devidas:</strong></td>
+                        <td style="font-weight: bold; color: ${horasDevidas > 0 ? '#e74c3c' : '#7f8c8d'};">${horasDevidasFormat}</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: right;"><strong>Saldo Final:</strong></td>
+                        <td style="font-weight: bold; color: ${(horasExtras - horasDevidas) > 0 ? '#27ae60' : '#e74c3c'};">${(horasExtras - horasDevidas).toFixed(2)}h</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <div class="pdf-notes">
+                <p><strong>Observações:</strong></p>
+                <ul>
+                    <li>Horas calculadas considerando 1 hora de intervalo para jornadas acima de 6 horas</li>
+                    <li>Feriados destacados em amarelo</li>
+                    <li>Jornada padrão considerada: ${userConfig.jornadaInicio || '08:00'} às ${userConfig.jornadaFim || '17:00'} (8h diárias)</li>
+                    <li>Horas extras calculadas com base na diferença entre horas trabalhadas e jornada padrão</li>
+                    <li>Relatório gerado automaticamente pelo sistema de ponto eletrônico</li>
+                </ul>
+            </div>
+            
+            <div class="pdf-footer">
+                <p>Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+            </div>
+            
+            <div class="pdf-signature">
+                <p>_________________________________________</p>
+                <p>Assinatura do Responsável</p>
+            </div>
         </body>
         </html>
-    `);
+    `;
+    
+    // Gerar PDF
+    const win = window.open('', '_blank');
+    win.document.write(pdfContent);
     win.document.close();
+    
+    // Adicionar delay para garantir que o conteúdo seja carregado antes da impressão
+    setTimeout(() => {
+        win.print();
+    }, 500);
 }
 
 // Exportar relatório anual em PDF
 function exportYearPDF() {
     const registros = JSON.parse(localStorage.getItem('registrosPontos') || '[]');
     const year = document.getElementById('reportYear').value;
+    const userConfig = JSON.parse(localStorage.getItem('userConfig')) || defaultConfig;
     
     if (!year) {
         alert('Por favor, selecione um ano.');
@@ -1000,8 +1215,169 @@ function exportYearPDF() {
     
     // Criar conteúdo do PDF
     let pdfContent = `
-        <h1 style="text-align: center;">Relatório Anual de Ponto</h1>
-        <h2 style="text-align: center;">Ano ${year}</h2>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Relatório Anual de Ponto - ${year}</title>
+            <style>
+                body { 
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    margin: 1.5cm;
+                    color: #333;
+                    line-height: 1.5;
+                }
+                .pdf-header {
+                    text-align: center;
+                    margin-bottom: 1.5rem;
+                    padding-bottom: 1rem;
+                    border-bottom: 2px solid #e0e0e0;
+                }
+                .pdf-header h1 {
+                    color: #2c3e50;
+                    font-size: 1.8rem;
+                    margin-bottom: 0.5rem;
+                    font-weight: 600;
+                }
+                .pdf-header h2 {
+                    color: #7f8c8d;
+                    font-size: 1.3rem;
+                    font-weight: 400;
+                }
+                .user-info {
+                    margin-bottom: 1.5rem;
+                    padding: 1rem;
+                    background-color: #f5f5f5;
+                    border-radius: 6px;
+                    font-size: 0.9rem;
+                }
+                .user-info-row {
+                    display: flex;
+                    margin-bottom: 0.5rem;
+                }
+                .user-info-label {
+                    font-weight: 600;
+                    min-width: 150px;
+                    color: #7f8c8d;
+                }
+                .pdf-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 1.5rem 0;
+                    font-size: 0.9rem;
+                }
+                .pdf-table th {
+                    background-color: #3498db;
+                    color: white;
+                    padding: 0.75rem;
+                    text-align: center;
+                    font-weight: 500;
+                    border: 1px solid #2980b9;
+                }
+                .pdf-table td {
+                    padding: 0.6rem;
+                    border: 1px solid #e0e0e0;
+                    text-align: center;
+                }
+                .pdf-table tr:nth-child(even) {
+                    background-color: #f8f9fa;
+                }
+                .pdf-feriado {
+                    background-color: #fff8e1 !important;
+                    color: #5d4037;
+                }
+                .pdf-summary {
+                    background-color: #f5f5f5;
+                    border-radius: 6px;
+                    padding: 1rem;
+                    margin: 1.5rem 0;
+                }
+                .pdf-summary h3 {
+                    color: #2c3e50;
+                    font-size: 1.2rem;
+                    margin-bottom: 1rem;
+                    border-bottom: 1px solid #e0e0e0;
+                    padding-bottom: 0.5rem;
+                }
+                .pdf-notes {
+                    font-size: 0.8rem;
+                    color: #7f8c8d;
+                    margin-top: 1.5rem;
+                    padding-top: 1rem;
+                    border-top: 1px dashed #e0e0e0;
+                }
+                .pdf-footer {
+                    margin-top: 2rem;
+                    padding-top: 1rem;
+                    border-top: 2px solid #e0e0e0;
+                    font-size: 0.85rem;
+                    color: #7f8c8d;
+                }
+                .pdf-signature {
+                    margin-top: 3rem;
+                    padding-top: 1rem;
+                    border-top: 1px solid #e0e0e0;
+                    text-align: right;
+                }
+                .pdf-logo {
+                    text-align: center;
+                    margin-bottom: 1rem;
+                }
+                .pdf-logo-text {
+                    display: inline-block;
+                    background-color: #3498db;
+                    color: white;
+                    padding: 0.5rem 1.5rem;
+                    border-radius: 4px;
+                    font-weight: 600;
+                    font-size: 1.2rem;
+                    margin-bottom: 1rem;
+                }
+                @page {
+                    size: A4;
+                    margin: 1.5cm;
+                    @bottom-right {
+                        content: "Página " counter(page) " de " counter(pages);
+                        font-size: 0.8rem;
+                        color: #7f8c8d;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="pdf-logo">
+                <div class="pdf-logo-text">PONTO ELETRÔNICO</div>
+            </div>
+            <div class="pdf-header">
+                <h1>Relatório Anual de Ponto</h1>
+                <h2>Ano ${year}</h2>
+            </div>
+            
+            <div class="user-info">
+                <div class="user-info-row">
+                    <span class="user-info-label">Nome:</span>
+                    <span>${userConfig.nome || 'Não informado'}</span>
+                </div>
+                <div class="user-info-row">
+                    <span class="user-info-label">Setor:</span>
+                    <span>${userConfig.setor || 'Não informado'}</span>
+                </div>
+                <div class="user-info-row">
+                    <span class="user-info-label">Função:</span>
+                    <span>${userConfig.funcao || 'Não informado'}</span>
+                </div>
+                <div class="user-info-row">
+                    <span class="user-info-label">Empresa:</span>
+                    <span>${userConfig.empresa || 'Não informado'}</span>
+                </div>
+                <div class="user-info-row">
+                    <span class="user-info-label">Data de Admissão:</span>
+                    <span>${userConfig.admissao ? new Date(userConfig.admissao).toLocaleDateString('pt-BR') : 'Não informada'}</span>
+                </div>
+                <div class="user-info-row">
+                    <span class="user-info-label">Jornada Padrão:</span>
+                    <span>${userConfig.jornadaInicio || '08:00'} às ${userConfig.jornadaFim || '17:00'}</span>
+                </div>
+            </div>
     `;
     
     let totalHorasAno = 0;
@@ -1025,16 +1401,16 @@ function exportYearPDF() {
             
             let monthTable = `
                 <h3 style="margin-top: 30px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">${monthName.charAt(0).toUpperCase() + monthName.slice(1)}</h3>
-                <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                <table class="pdf-table">
                     <thead>
                         <tr>
-                            <th style="border: 1px solid #000; padding: 8px;">Data</th>
-                            <th style="border: 1px solid #000; padding: 8px;">Dia</th>
-                            <th style="border: 1px solid #000; padding: 8px;">Entrada</th>
-                            <th style="border: 1px solid #000; padding: 8px;">Intervalo</th>
-                            <th style="border: 1px solid #000; padding: 8px;">Retorno</th>
-                            <th style="border: 1px solid #000; padding: 8px;">Saída</th>
-                            <th style="border: 1px solid #000; padding: 8px;">Total</th>
+                            <th>Data</th>
+                            <th>Dia</th>
+                            <th>Entrada</th>
+                            <th>Intervalo</th>
+                            <th>Retorno</th>
+                            <th>Saída</th>
+                            <th>Total</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1108,14 +1484,14 @@ function exportYearPDF() {
                 totalHorasAno += horasTrabalhadas;
                 
                 monthTable += `
-                    <tr ${isFeriado ? 'style="background-color: #fff3cd;"' : ''}>
-                        <td style="border: 1px solid #000; padding: 8px;">${day.toString().padStart(2, '0')}/${(month+1).toString().padStart(2, '0')}</td>
-                        <td style="border: 1px solid #000; padding: 8px;">${dayName}${isFeriado ? ' (Feriado)' : ''}</td>
-                        <td style="border: 1px solid #000; padding: 8px;">${entrada ? new Date(entrada.data).toLocaleTimeString('pt-BR') : 'N/A'}</td>
-                        <td style="border: 1px solid #000; padding: 8px;">${intervalo ? new Date(intervalo.data).toLocaleTimeString('pt-BR') : 'N/A'}</td>
-                        <td style="border: 1px solid #000; padding: 8px;">${retorno ? new Date(retorno.data).toLocaleTimeString('pt-BR') : 'N/A'}</td>
-                        <td style="border: 1px solid #000; padding: 8px;">${saida ? new Date(saida.data).toLocaleTimeString('pt-BR') : 'N/A'}</td>
-                        <td style="border: 1px solid #000; padding: 8px;">${horasStr}</td>
+                    <tr ${isFeriado ? 'class="pdf-feriado"' : ''}>
+                        <td>${day.toString().padStart(2, '0')}/${(month+1).toString().padStart(2, '0')}</td>
+                        <td>${dayName}${isFeriado ? ' (Feriado)' : ''}</td>
+                        <td>${entrada ? new Date(entrada.data).toLocaleTimeString('pt-BR') : 'N/A'}</td>
+                        <td>${intervalo ? new Date(intervalo.data).toLocaleTimeString('pt-BR') : 'N/A'}</td>
+                        <td>${retorno ? new Date(retorno.data).toLocaleTimeString('pt-BR') : 'N/A'}</td>
+                        <td>${saida ? new Date(saida.data).toLocaleTimeString('pt-BR') : 'N/A'}</td>
+                        <td>${horasStr}</td>
                     </tr>
                 `;
             }
@@ -1135,20 +1511,20 @@ function exportYearPDF() {
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="6" style="border: 1px solid #000; padding: 8px; text-align: right;"><strong>Total do Mês:</strong></td>
-                            <td style="border: 1px solid #000; padding: 8px;"><strong>${totalStr}</strong></td>
+                            <td colspan="6" style="text-align: right;"><strong>Total do Mês:</strong></td>
+                            <td><strong>${totalStr}</strong></td>
                         </tr>
                         <tr>
-                            <td colspan="6" style="border: 1px solid #000; padding: 8px; text-align: right;"><strong>Média Diária:</strong></td>
-                            <td style="border: 1px solid #000; padding: 8px;"><strong>${mediaStr}</strong></td>
+                            <td colspan="6" style="text-align: right;"><strong>Média Diária:</strong></td>
+                            <td><strong>${mediaStr}</strong></td>
                         </tr>
                         <tr>
-                            <td colspan="6" style="border: 1px solid #000; padding: 8px; text-align: right;"><strong>Dias Úteis:</strong></td>
-                            <td style="border: 1px solid #000; padding: 8px;"><strong>${diasUteisMes}</strong></td>
+                            <td colspan="6" style="text-align: right;"><strong>Dias Úteis:</strong></td>
+                            <td><strong>${diasUteisMes}</strong></td>
                         </tr>
                         <tr>
-                            <td colspan="6" style="border: 1px solid #000; padding: 8px; text-align: right;"><strong>Dias Trabalhados:</strong></td>
-                            <td style="border: 1px solid #000; padding: 8px;"><strong>${diasTrabalhadosMes}</strong></td>
+                            <td colspan="6" style="text-align: right;"><strong>Dias Trabalhados:</strong></td>
+                            <td><strong>${diasTrabalhadosMes}</strong></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -1177,74 +1553,65 @@ function exportYearPDF() {
     const mediaDiariaStr = `${mediaDiariaHours.toString().padStart(2, '0')}:${mediaDiariaMinutes.toString().padStart(2, '0')}`;
     
     pdfContent += `
-        <div style="margin-top: 30px; border-top: 2px solid #000; padding-top: 15px;">
+        <div class="pdf-summary">
             <h3>Resumo Anual</h3>
-            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+            <table class="pdf-table">
                 <tbody>
                     <tr>
-                        <td style="border: 1px solid #000; padding: 8px; width: 30%;"><strong>Total de Horas Trabalhadas:</strong></td>
-                        <td style="border: 1px solid #000; padding: 8px;">${totalStr}</td>
+                        <td style="text-align: right; width: 70%;"><strong>Total de Horas Trabalhadas:</strong></td>
+                        <td style="font-weight: bold;">${totalStr}</td>
                     </tr>
                     <tr>
-                        <td style="border: 1px solid #000; padding: 8px;"><strong>Média Mensal:</strong></td>
-                        <td style="border: 1px solid #000; padding: 8px;">${mediaMensalStr}</td>
+                        <td style="text-align: right;"><strong>Média Mensal:</strong></td>
+                        <td style="font-weight: bold;">${mediaMensalStr}</td>
                     </tr>
                     <tr>
-                        <td style="border: 1px solid #000; padding: 8px;"><strong>Média Diária:</strong></td>
-                        <td style="border: 1px solid #000; padding: 8px;">${mediaDiariaStr}</td>
+                        <td style="text-align: right;"><strong>Média Diária:</strong></td>
+                        <td style="font-weight: bold;">${mediaDiariaStr}</td>
                     </tr>
                     <tr>
-                        <td style="border: 1px solid #000; padding: 8px;"><strong>Dias Úteis no Ano:</strong></td>
-                        <td style="border: 1px solid #000; padding: 8px;">${totalDiasUteis}</td>
+                        <td style="text-align: right;"><strong>Dias Úteis no Ano:</strong></td>
+                        <td style="font-weight: bold;">${totalDiasUteis}</td>
                     </tr>
                     <tr>
-                        <td style="border: 1px solid #000; padding: 8px;"><strong>Dias Trabalhados:</strong></td>
-                        <td style="border: 1px solid #000; padding: 8px;">${totalDiasTrabalhados}</td>
+                        <td style="text-align: right;"><strong>Dias Trabalhados:</strong></td>
+                        <td style="font-weight: bold;">${totalDiasTrabalhados}</td>
                     </tr>
                 </tbody>
             </table>
         </div>
-        <div style="margin-top: 30px; font-size: 0.9rem;">
+        
+        <div class="pdf-notes">
             <p><strong>Observações:</strong></p>
             <ul>
                 <li>Horas calculadas considerando 1 hora de intervalo para jornadas acima de 6 horas</li>
                 <li>Feriados destacados em amarelo</li>
                 <li>Relatório gerado automaticamente pelo sistema de ponto eletrônico</li>
+                <li>Jornada padrão: ${userConfig.jornadaInicio || '08:00'} às ${userConfig.jornadaFim || '17:00'}</li>
             </ul>
         </div>
-        <p style="margin-top: 20px; text-align: right; font-size: 0.9rem;">Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+        
+        <div class="pdf-footer">
+            <p>Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+        </div>
+        
+        <div class="pdf-signature">
+            <p>_________________________________________</p>
+            <p>Assinatura do Responsável</p>
+        </div>
+    </body>
+    </html>
     `;
     
-    // Gerar PDF (simulação - em produção usar biblioteca como jsPDF)
+    // Gerar PDF
     const win = window.open('', '_blank');
-    win.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Relatório Anual de Ponto - ${year}</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 20px; }
-                table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                th, td { border: 1px solid #000; padding: 8px; text-align: center; }
-                .feriado { background-color: #fff3cd; }
-                tfoot tr { font-weight: bold; background-color: #f2f2f2; }
-                h1, h2, h3 { color: #2c3e50; }
-                ul { padding-left: 20px; }
-            </style>
-        </head>
-        <body>
-            ${pdfContent}
-            <script>
-                window.onload = function() {
-                    setTimeout(function() {
-                        window.print();
-                    }, 500);
-                };
-            </script>
-        </body>
-        </html>
-    `);
+    win.document.write(pdfContent);
     win.document.close();
+    
+    // Adicionar delay para garantir que o conteúdo seja carregado antes da impressão
+    setTimeout(() => {
+        win.print();
+    }, 500);
 }
 
 // Carregar feriados
@@ -1350,4 +1717,32 @@ function updateBackupStats() {
     } else {
         document.getElementById('recordsPeriod').textContent = 'N/A';
     }
+}
+
+// Adicione estas novas funções:
+function loadUserConfig() {
+    const config = JSON.parse(localStorage.getItem('userConfig')) || defaultConfig;
+    
+    document.getElementById('userName').value = config.nome;
+    document.getElementById('userSetor').value = config.setor;
+    document.getElementById('userFuncao').value = config.funcao;
+    document.getElementById('userEmpresa').value = config.empresa;
+    document.getElementById('userAdmissao').value = config.admissao;
+    document.getElementById('jornadaInicio').value = config.jornadaInicio;
+    document.getElementById('jornadaFim').value = config.jornadaFim;
+}
+
+function saveUserConfig() {
+    const config = {
+        nome: document.getElementById('userName').value,
+        setor: document.getElementById('userSetor').value,
+        funcao: document.getElementById('userFuncao').value,
+        empresa: document.getElementById('userEmpresa').value,
+        admissao: document.getElementById('userAdmissao').value,
+        jornadaInicio: document.getElementById('jornadaInicio').value,
+        jornadaFim: document.getElementById('jornadaFim').value
+    };
+    
+    localStorage.setItem('userConfig', JSON.stringify(config));
+    showNotification('Configurações salvas com sucesso!', 'success');
 }
